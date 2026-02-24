@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HP Counter</title>
+
+<style>
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(160deg, #141e30, #243b55);
+    background-attachment: fixed;
+    color: white;
+}
+
+header {
+    padding: 15px 20px;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(8px);
+}
+
+button {
+    border: none;
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+button:hover { transform: scale(1.05); }
+
+.add-btn { background: #00b894; color: white; }
+
+.container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.card {
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(12px);
+    padding: 20px;
+    border-radius: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.name {
+    font-size: 22px;
+    font-weight: bold;
+    outline: none;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hp {
+    font-size: 26px;
+    min-width: 60px;
+    text-align: center;
+}
+
+.plus { background: #2ecc71; color: white; }
+.minus { background: #e74c3c; color: white; }
+.full { background: #0984e3; color: white; }
+.delete { background: #636e72; color: white; }
+
+/* FULLSCREEN CARD VIEW */
+
+.fullscreen-view {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, #0f0c29, #302b63, #24243e);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.fullscreen-name {
+    font-size: 60px;
+    margin-bottom: 30px;
+}
+
+.fullscreen-hp {
+    font-size: 180px;
+    font-weight: bold;
+}
+
+.fullscreen-controls {
+    margin-top: 40px;
+    display: flex;
+    gap: 20px;
+}
+
+.top-buttons {
+    position: absolute;
+    top: 25px;
+    right: 25px;
+    display: flex;
+    gap: 10px;
+}
+
+.top-buttons button {
+    background: #ffffff22;
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <button class="add-btn" onclick="addCard()">Добавить</button>
+</header>
+
+<div class="container" id="container"></div>
+
+<script>
+let players = [];
+let currentFullscreenId = null;
+
+function randomColor() {
+    const colors = [
+        "#ff7675","#74b9ff","#55efc4",
+        "#ffeaa7","#a29bfe","#fd79a8",
+        "#00cec9","#fab1a0"
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function addCard() {
+    players.push({
+        id: Date.now(),
+        name: "Игрок",
+        hp: 0,
+        color: randomColor()
+    });
+    render();
+}
+
+function changeHP(id, delta) {
+    const player = players.find(p => p.id === id);
+    player.hp += delta;
+    render();
+    updateFullscreenHP(id);
+}
+
+function updateFullscreenHP(id) {
+    if (currentFullscreenId === id) {
+        const player = players.find(p => p.id === id);
+        const fsHP = document.getElementById("fs-hp");
+        if (fsHP) fsHP.textContent = player.hp;
+    }
+}
+
+function deleteCard(id) {
+    players = players.filter(p => p.id !== id);
+    if (currentFullscreenId === id) closeFullscreen();
+    render();
+}
+
+function updateName(id, value) {
+    const player = players.find(p => p.id === id);
+    player.name = value;
+}
+
+function render() {
+    const container = document.getElementById("container");
+    container.innerHTML = "";
+
+    players.forEach(player => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <div class="name" contenteditable="true"
+                 style="color:${player.color}"
+                 oninput="updateName(${player.id}, this.innerText)">
+                 ${player.name}
+            </div>
+            <div class="controls">
+                <button class="minus" onclick="changeHP(${player.id}, -1)">-</button>
+                <div class="hp">${player.hp}</div>
+                <button class="plus" onclick="changeHP(${player.id}, 1)">+</button>
+                <button class="full" onclick="openFullscreen(${player.id})">⛶</button>
+                <button class="delete" onclick="deleteCard(${player.id})">✕</button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function openFullscreen(id) {
+    currentFullscreenId = id;
+    const player = players.find(p => p.id === id);
+
+    const view = document.createElement("div");
+    view.className = "fullscreen-view";
+    view.id = "fullscreen";
+
+    view.innerHTML = `
+        <div class="top-buttons">
+            <button onclick="toggleBrowserFullscreen()">🖥</button>
+            <button onclick="closeFullscreen()">✕</button>
+        </div>
+
+        <div class="fullscreen-name" style="color:${player.color}">
+            ${player.name}
+        </div>
+
+        <div class="fullscreen-hp" id="fs-hp">${player.hp}</div>
+
+        <div class="fullscreen-controls">
+            <button class="minus" onclick="changeHP(${player.id}, -1)">-</button>
+            <button class="plus" onclick="changeHP(${player.id}, 1)">+</button>
+        </div>
+    `;
+
+    document.body.appendChild(view);
+}
+
+function closeFullscreen() {
+    currentFullscreenId = null;
+    const fs = document.getElementById("fullscreen");
+    if (fs) fs.remove();
+}
+
+function toggleBrowserFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+render();
+</script>
+
+</body>
+</html>
